@@ -1,6 +1,7 @@
 import re
+from collections.abc import Iterable, Iterator
 from contextlib import contextmanager
-from typing import Dict, Iterable, Iterator, NamedTuple, Optional
+from typing import NamedTuple, Optional
 
 from scmrepo.git import Stash
 
@@ -42,7 +43,7 @@ class ExpStash(Stash):
     )
 
     @property
-    def stash_revs(self) -> Dict[str, ExpStashEntry]:
+    def stash_revs(self) -> dict[str, ExpStashEntry]:
         revs = {}
         for i, entry in enumerate(self):
             msg = entry.message.decode("utf-8").strip()
@@ -110,27 +111,19 @@ class ApplyStash(Stash):
     )
 
     @property
-    def stash_revs(self) -> Dict[str, ApplyStashEntry]:
+    def stash_revs(self) -> dict[str, ApplyStashEntry]:
         revs = {}
         for i, entry in enumerate(self):
             msg = entry.message.decode("utf-8").strip()
             m = self.MESSAGE_RE.match(msg)
             if m:
                 revs[entry.new_sha.decode("utf-8")] = ApplyStashEntry(
-                    i,
-                    m.group("head_rev"),
-                    m.group("rev"),
-                    m.group("name"),
+                    i, m.group("head_rev"), m.group("rev"), m.group("name")
                 )
         return revs
 
     @classmethod
-    def format_message(
-        cls,
-        head_rev: str,
-        rev: str,
-        name: Optional[str] = None,
-    ) -> str:
+    def format_message(cls, head_rev: str, rev: str, name: Optional[str] = None) -> str:
         return cls.MESSAGE_FORMAT.format(
             head_rev=head_rev, rev=rev, name=name if name else ""
         )

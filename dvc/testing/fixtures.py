@@ -1,39 +1,38 @@
 import os
 import pathlib
 import subprocess
-from typing import Dict, Tuple
 
 import pytest
 
 from .scripts import copy_script
 
 __all__ = [
-    "make_tmp_dir",
-    "tmp_dir",
-    "scm",
+    "cloud",
+    "copy_script",
+    "docker_compose_project_name",
+    "docker_services",
     "dvc",
+    "local_cloud",
+    "local_remote",
+    "local_workspace",
     "make_cloud",
     "make_cloud_version_aware",
     "make_local",
-    "cloud",
-    "local_cloud",
     "make_remote",
     "make_remote_version_aware",
     "make_remote_worktree",
+    "make_tmp_dir",
+    "make_workspace",
     "remote",
     "remote_version_aware",
     "remote_worktree",
-    "local_remote",
-    "workspace",
-    "make_workspace",
-    "local_workspace",
-    "docker_compose_project_name",
-    "docker_services",
-    "copy_script",
     "run_copy",
+    "scm",
+    "tmp_dir",
+    "workspace",
 ]
 
-CACHE: Dict[Tuple[bool, bool, bool], str] = {}
+CACHE: dict[tuple[bool, bool, bool], str] = {}
 
 
 @pytest.fixture(scope="session")
@@ -247,11 +246,7 @@ def docker_services(
 
     try:
         cmd = "docker-compose version"
-        subprocess.check_output(
-            cmd,
-            stderr=subprocess.STDOUT,
-            shell=True,  # noqa: S602
-        )
+        subprocess.check_output(cmd, stderr=subprocess.STDOUT, shell=True)  # noqa: S602
     except subprocess.CalledProcessError as err:
         out = (err.output or b"").decode("utf-8")
         pytest.skip(f"docker-compose is not installed: {out}")

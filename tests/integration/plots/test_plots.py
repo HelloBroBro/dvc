@@ -1,7 +1,6 @@
 import json
 import os
 from copy import deepcopy
-from typing import Dict, List
 from urllib.parse import urlparse
 from urllib.request import url2pathname
 
@@ -57,7 +56,7 @@ def extract_vega_specs(html_path, plots_ids):
     return result
 
 
-def drop_fields(datapoints: List[Dict], fields: List[str]):
+def drop_fields(datapoints: list[dict], fields: list[str]):
     tmp = deepcopy(datapoints)
     for datapoint in tmp:
         keys = set(datapoint.keys())
@@ -98,13 +97,7 @@ def _remove_blanks(text: str):
 
 
 def verify_vega(
-    versions,
-    html_result,
-    json_result,
-    split_json_result,
-    title,
-    x_label,
-    y_label,
+    versions, html_result, json_result, split_json_result, title, x_label, y_label
 ):
     if isinstance(versions, str):
         versions = [versions]
@@ -145,13 +138,7 @@ def verify_vega(
             .replace("<DVC_METRIC_Y_LABEL>", y_label)
             .replace(
                 '"<DVC_METRIC_ZOOM_AND_PAN>"',
-                json.dumps(
-                    {
-                        "name": "grid",
-                        "select": "interval",
-                        "bind": "scales",
-                    }
-                ),
+                json.dumps({"name": "grid", "select": "interval", "bind": "scales"}),
             )
         )
         for path in paths:
@@ -192,7 +179,7 @@ def verify_vega_props(plot_id, json_result, title, x, y, **kwargs):
     assert plot_y == y
 
 
-def _update_datapoints(datapoints: List, update: Dict):
+def _update_datapoints(datapoints: list, update: dict):
     result = []
     for dp in datapoints:
         tmp = dp.copy()
@@ -374,22 +361,8 @@ def test_repo_with_plots(tmp_dir, scm, dvc, capsys, run_copy_metrics, repo_with_
                 x_label,
                 y_label,
             )
-        verify_image(
-            path,
-            "workspace",
-            "../image.png",
-            image_v2,
-            html_path,
-            json_data,
-        )
-        verify_image(
-            path,
-            "HEAD",
-            "../image.png",
-            image_v1,
-            html_path,
-            json_data,
-        )
+        verify_image(path, "workspace", "../image.png", image_v2, html_path, json_data)
+        verify_image(path, "HEAD", "../image.png", image_v1, html_path, json_data)
 
 
 @pytest.mark.vscode
@@ -501,7 +474,7 @@ def test_repo_with_dvclive_plots(tmp_dir, capsys, repo_with_dvclive_plots):
 
     for s in ("show", "diff"):
         _, json_result, split_json_result = call(capsys, subcommand=s)
-        expected_result: Dict[str, Dict[str, list[str]]] = {
+        expected_result: dict[str, dict[str, list[str]]] = {
             "data": {
                 "dvclive/plots/metrics/metric.tsv": [],
             },

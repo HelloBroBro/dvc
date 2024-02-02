@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Dict, List
+from typing import TYPE_CHECKING
 
 from scmrepo.exceptions import SCMError
 
@@ -16,18 +16,14 @@ if TYPE_CHECKING:
     from .base import BaseStashQueue
 
 
-def get_remote_executor_refs(scm: "Git", remote_url: str) -> List[str]:
+def get_remote_executor_refs(scm: "Git", remote_url: str) -> list[str]:
     """Get result list refs from a remote repository
 
     Args:
         remote_url : remote executor's url
     """
     refs = []
-    for ref in iter_remote_refs(
-        scm,
-        remote_url,
-        base=EXPS_NAMESPACE,
-    ):
+    for ref in iter_remote_refs(scm, remote_url, base=EXPS_NAMESPACE):
         if not ref.startswith(EXEC_NAMESPACE) and ref != EXPS_STASH:
             refs.append(ref)
     return refs
@@ -35,7 +31,7 @@ def get_remote_executor_refs(scm: "Git", remote_url: str) -> List[str]:
 
 def fetch_running_exp_from_temp_dir(
     queue: "BaseStashQueue", rev: str, fetch_refs: bool
-) -> Dict[str, Dict]:
+) -> dict[str, dict]:
     """Fetch status of running exps out of current working directory
 
     Args:
@@ -50,7 +46,7 @@ def fetch_running_exp_from_temp_dir(
     from dvc.scm import InvalidRemoteSCMRepo
     from dvc.utils.serialize import load_json
 
-    result: Dict[str, Dict] = {}
+    result: dict[str, dict] = {}
     infofile = queue.get_infofile_path(rev)
     try:
         info = ExecutorInfo.from_dict(load_json(infofile))

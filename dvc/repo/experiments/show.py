@@ -1,20 +1,7 @@
 from collections import Counter, defaultdict
+from collections.abc import Iterable, Iterator, Mapping
 from datetime import date, datetime
-from typing import (
-    TYPE_CHECKING,
-    Any,
-    Dict,
-    Iterable,
-    Iterator,
-    List,
-    Literal,
-    Mapping,
-    NamedTuple,
-    Optional,
-    Set,
-    Tuple,
-    Union,
-)
+from typing import TYPE_CHECKING, Any, Literal, NamedTuple, Optional, Union
 
 from dvc.exceptions import InvalidArgumentError
 from dvc.log import logger
@@ -36,7 +23,7 @@ logger = logger.getChild(__name__)
 
 def show(
     repo: "Repo",
-    revs: Union[List[str], str, None] = None,
+    revs: Union[list[str], str, None] = None,
     all_branches: bool = False,
     all_tags: bool = False,
     all_commits: bool = False,
@@ -45,7 +32,7 @@ def show(
     hide_failed: bool = False,
     sha_only: bool = False,
     **kwargs,
-) -> List["ExpState"]:
+) -> list["ExpState"]:
     return collect(
         repo,
         revs=revs,
@@ -65,7 +52,7 @@ def tabulate(
     fill_value: Optional[str] = "-",
     error_value: str = "!",
     **kwargs,
-) -> Tuple["TabularData", Dict[str, Iterable[str]]]:
+) -> tuple["TabularData", dict[str, Iterable[str]]]:
     """Return table data for experiments.
 
     Returns:
@@ -112,7 +99,7 @@ def tabulate(
             **kwargs,
         )
     )
-    data_headers: Dict[str, Iterable[str]] = {
+    data_headers: dict[str, Iterable[str]] = {
         "metrics": metrics_headers,
         "params": params_headers,
         "deps": deps_names,
@@ -128,9 +115,9 @@ def _build_rows(
     sort_by: Optional[str] = None,
     sort_order: Optional[Literal["asc", "desc"]] = None,
     **kwargs,
-) -> Iterator[Tuple["CellT", ...]]:
+) -> Iterator[tuple["CellT", ...]]:
     for baseline in baseline_states:
-        row: Dict[str, "CellT"] = {k: fill_value for k in all_headers}
+        row: dict[str, "CellT"] = dict.fromkeys(all_headers, fill_value)
         row["Experiment"] = ""
         if baseline.name:
             row["rev"] = baseline.name
@@ -177,10 +164,10 @@ def _sort_column(  # noqa: C901
     sort_by: str,
     metric_names: Mapping[str, Iterable[str]],
     param_names: Mapping[str, Iterable[str]],
-) -> Tuple[str, str, str]:
+) -> tuple[str, str, str]:
     sep = ":"
     parts = sort_by.split(sep)
-    matches: Set[Tuple[str, str, str]] = set()
+    matches: set[tuple[str, str, str]] = set()
 
     for split_num in range(len(parts)):
         path = sep.join(parts[:split_num])
@@ -217,7 +204,7 @@ def _sort_exp(
     sort_name: str,
     typ: str,
     reverse: bool,
-) -> List["ExpRange"]:
+) -> list["ExpRange"]:
     from funcy import first
 
     def _sort(exp_range: "ExpRange"):
@@ -238,14 +225,14 @@ def _exp_range_rows(
     fill_value: Optional[str],
     is_base: bool = False,
     **kwargs,
-) -> Iterator[Tuple["CellT", ...]]:
+) -> Iterator[tuple["CellT", ...]]:
     from funcy import first
 
     if len(exp_range.revs) > 1:
         logger.debug("Returning tip commit for legacy checkpoint exp")
     exp = first(exp_range.revs)
     if exp:
-        row: Dict[str, "CellT"] = {k: fill_value for k in all_headers}
+        row: dict[str, "CellT"] = dict.fromkeys(all_headers, fill_value)
         row["Experiment"] = exp.name or ""
         row["rev"] = exp.rev[:7] if Git.is_sha(exp.rev) else exp.rev
         row["typ"] = "branch_base" if is_base else "branch_commit"
@@ -274,12 +261,12 @@ def _data_cells(
     error_value: str = "!",
     precision: Optional[int] = None,
     **kwargs,
-) -> Iterator[Tuple[str, "CellT"]]:
+) -> Iterator[tuple[str, "CellT"]]:
     def _d_cells(
         d: Mapping[str, Any],
         names: Mapping[str, Iterable[str]],
         headers: Iterable[str],
-    ) -> Iterator[Tuple[str, "CellT"]]:
+    ) -> Iterator[tuple[str, "CellT"]]:
         from dvc.compare import _format_field, with_value
 
         for fname, data in d.items():
@@ -329,9 +316,9 @@ def format_time(
 class _DataNames(NamedTuple):
     # NOTE: we use nested dict instead of set for metrics/params names to
     # preserve key ordering
-    metrics: Dict[str, Dict[str, Any]]
-    params: Dict[str, Dict[str, Any]]
-    deps: Set[str]
+    metrics: dict[str, dict[str, Any]]
+    params: dict[str, dict[str, Any]]
+    deps: set[str]
 
     @property
     def sorted_deps(self):
@@ -339,7 +326,7 @@ class _DataNames(NamedTuple):
 
     def update(self, other: "_DataNames"):
         def _update_d(
-            d: Dict[str, Dict[str, Any]], other_d: Mapping[str, Mapping[str, Any]]
+            d: dict[str, dict[str, Any]], other_d: Mapping[str, Mapping[str, Any]]
         ):
             for k, v in other_d.items():
                 if k in d:
@@ -355,7 +342,7 @@ class _DataNames(NamedTuple):
 def _collect_names(exp_states: Iterable["ExpState"]) -> _DataNames:
     result = _DataNames(defaultdict(dict), defaultdict(dict), set())
 
-    def _collect_d(result_d: Dict[str, Dict[str, Any]], data_d: Dict[str, Any]):
+    def _collect_d(result_d: dict[str, dict[str, Any]], data_d: dict[str, Any]):
         for path, item in data_d.items():
             item = item.get("data", {})
             if isinstance(item, dict):
@@ -376,7 +363,7 @@ def _collect_names(exp_states: Iterable["ExpState"]) -> _DataNames:
 
 def _normalize_headers(
     names: Mapping[str, Mapping[str, Any]], count: Mapping[str, int]
-) -> List[str]:
+) -> list[str]:
     return [
         name if count[name] == 1 else f"{path}:{name}"
         for path in names

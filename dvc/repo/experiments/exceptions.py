@@ -1,4 +1,5 @@
-from typing import TYPE_CHECKING, Collection, Iterable, Optional
+from collections.abc import Collection, Iterable
+from typing import TYPE_CHECKING, Optional
 
 from dvc.exceptions import DvcException, InvalidArgumentError
 
@@ -50,11 +51,7 @@ class MultipleBranchError(DvcException):
 
 
 class AmbiguousExpRefInfo(InvalidArgumentError):
-    def __init__(
-        self,
-        exp_name: str,
-        exp_ref_list: Iterable["ExpRefInfo"],
-    ):
+    def __init__(self, exp_name: str, exp_ref_list: Iterable["ExpRefInfo"]):
         msg = [
             (
                 f"Ambiguous name '{exp_name}' refers to multiple experiments."

@@ -6,7 +6,7 @@ DEFAULT_PROJECT_GIT_REPO = "https://github.com/iterative/example-get-started"
 
 def pytest_report_header(config):
     bconf = config.bench_config
-    return "dvc-bench: (" f"dataset: '{bconf.dataset}'," f"revs: '{bconf.dvc_revs}'" ")"
+    return f"dvc-bench: (dataset: {bconf.dataset!r}, revs: {bconf.dvc_revs!r})"
 
 
 def pytest_generate_tests(metafunc):
@@ -86,11 +86,7 @@ def pytest_addoption(parser):
         help="Path or url to dvc-bench git repo (for loading benchmark datasets)",
     )
 
-    parser.addoption(
-        "--project-rev",
-        type=str,
-        help="Project revision to test",
-    )
+    parser.addoption("--project-rev", type=str, help="Project revision to test")
 
     parser.addoption(
         "--project-git-repo",

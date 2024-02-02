@@ -2,20 +2,9 @@ import os
 import random
 import sys
 from collections import defaultdict
+from collections.abc import Generator, Iterable, Mapping
 from functools import wraps
-from typing import (
-    TYPE_CHECKING,
-    Callable,
-    Dict,
-    Generator,
-    Iterable,
-    List,
-    Mapping,
-    Optional,
-    Set,
-    Tuple,
-    Union,
-)
+from typing import TYPE_CHECKING, Callable, Optional, Union
 
 from dvc.exceptions import InvalidArgumentError
 from dvc.repo.experiments.exceptions import AmbiguousExpRefInfo
@@ -43,8 +32,8 @@ EXEC_PID_DIR = "run"
 
 def get_exp_rwlock(
     repo: "Repo",
-    reads: Optional[List[str]] = None,
-    writes: Optional[List[str]] = None,
+    reads: Optional[list[str]] = None,
+    writes: Optional[list[str]] = None,
 ):
     reads = reads or []
     writes = writes or []
@@ -109,9 +98,9 @@ def exp_refs_by_rev(scm: "Git", rev: str) -> Generator[ExpRefInfo, None, None]:
 
 def exp_refs_by_baseline(
     scm: "Git",
-    revs: Optional[Set[str]] = None,
+    revs: Optional[set[str]] = None,
     url: Optional[str] = None,
-) -> Mapping[str, List[ExpRefInfo]]:
+) -> Mapping[str, list[ExpRefInfo]]:
     """Iterate over all experiment refs with the specified baseline."""
     all_exp_refs = exp_refs(scm, url)
     result = defaultdict(list)
@@ -137,7 +126,7 @@ def iter_remote_refs(scm: "Git", url: str, base: Optional[str] = None, **kwargs)
 def push_refspec(
     scm: "Git",
     url: str,
-    push_list=List[Tuple[Optional[str], str]],
+    push_list=list[tuple[Optional[str], str]],
     force: bool = False,
     on_diverged: Optional[Callable[[str, str], bool]] = None,
     **kwargs,
@@ -183,8 +172,8 @@ def remote_exp_refs(scm: "Git", url: str) -> Generator[ExpRefInfo, None, None]:
 
 
 def exp_refs_by_names(
-    scm: "Git", names: Set[str], url: Optional[str] = None
-) -> Dict[str, List[ExpRefInfo]]:
+    scm: "Git", names: set[str], url: Optional[str] = None
+) -> dict[str, list[ExpRefInfo]]:
     """Iterate over all experiment refs matching the specified names."""
     resolve_results = defaultdict(list)
     ref_info_gen = exp_refs(scm, url)
@@ -210,7 +199,7 @@ def exp_commits(
     scm: "Git", ref_infos: Optional[Iterable[ExpRefInfo]] = None
 ) -> Iterable[str]:
     """Iterate over all experiment commits."""
-    shas: Set["str"] = set()
+    shas: set["str"] = set()
     refs = ref_infos if ref_infos else exp_refs(scm)
     for ref_info in refs:
         shas.update(scm.branch_revs(str(ref_info), ref_info.baseline_sha))
@@ -242,7 +231,7 @@ def resolve_name(
     scm: "Git",
     exp_names: Union[Iterable[str], str],
     git_remote: Optional[str] = None,
-) -> Dict[str, Optional[ExpRefInfo]]:
+) -> dict[str, Optional[ExpRefInfo]]:
     """find the ref_info of specified names."""
     if isinstance(exp_names, str):
         exp_names = [exp_names]
@@ -288,12 +277,7 @@ def fetch_all_exps(scm: "Git", url: str, progress: Optional[Callable] = None, **
         for ref in iter_remote_refs(scm, url, base=EXPS_NAMESPACE)
         if not _ignore_ref(ref)
     ]
-    scm.fetch_refspecs(
-        url,
-        refspecs,
-        progress=progress,
-        **kwargs,
-    )
+    scm.fetch_refspecs(url, refspecs, progress=progress, **kwargs)
 
 
 def gen_random_name():
@@ -338,7 +322,7 @@ def to_studio_params(dvc_params):
         "params.yaml": {"foo": 1}
     }
     """
-    result: Dict = {}
+    result: dict = {}
     if not dvc_params:
         return result
     for rev_data in dvc_params.values():
@@ -353,7 +337,7 @@ def describe(
     revs: Iterable[str],
     logger,
     refs: Optional[Iterable[str]] = None,
-) -> Dict[str, Optional[str]]:
+) -> dict[str, Optional[str]]:
     """Describe revisions using a tag, branch.
 
     The first matching name will be returned for each rev. Names are preferred in this
@@ -390,7 +374,7 @@ def describe(
         if is_branch and rev not in branches:
             branches[rev] = ref[len("refs/heads/") :]
 
-    names: Dict[str, Optional[str]] = {}
+    names: dict[str, Optional[str]] = {}
     for rev in revs:
         if rev == head_rev and head_branch:
             names[rev] = head_branch

@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, List, Tuple
+from typing import TYPE_CHECKING
 
 from dvc.exceptions import DownloadError
 from dvc.log import logger
@@ -163,11 +163,7 @@ def fetch(  # noqa: PLR0913
         tokenize(sorted(idx.data_tree.hash_info.value for idx in indexes.values())),
     )
 
-    with ui.progress(
-        desc="Collecting",
-        unit="entry",
-        leave=True,
-    ) as pb:
+    with ui.progress(desc="Collecting", unit="entry", leave=True) as pb:
         data = collect(
             [idx.data["repo"] for idx in indexes.values()],
             "remote",
@@ -205,9 +201,9 @@ def fetch(  # noqa: PLR0913
     return transferred_count
 
 
-def _log_unversioned(data: List["DataIndex"]) -> Tuple[List["DataIndex"], int]:
-    ret: List["DataIndex"] = []
-    unversioned: List[str] = []
+def _log_unversioned(data: list["DataIndex"]) -> tuple[list["DataIndex"], int]:
+    ret: list["DataIndex"] = []
+    unversioned: list[str] = []
     for fs_index in data:
         remote = fs_index.storage_map[()].remote
         if not isinstance(remote, FileStorage) or not remote.fs.version_aware:

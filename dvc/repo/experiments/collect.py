@@ -1,18 +1,9 @@
 import itertools
 import os
+from collections.abc import Collection, Iterable, Iterator
 from dataclasses import fields
 from datetime import datetime
-from typing import (
-    TYPE_CHECKING,
-    Collection,
-    Dict,
-    Iterable,
-    Iterator,
-    List,
-    Optional,
-    Tuple,
-    Union,
-)
+from typing import TYPE_CHECKING, Optional, Union
 
 from funcy import first
 from scmrepo.exceptions import SCMError as InnerSCMError
@@ -63,13 +54,7 @@ def collect_rev(
     else:
         orig_cwd = None
     try:
-        data = _collect_rev(
-            repo,
-            rev,
-            param_deps=param_deps,
-            force=force,
-            **kwargs,
-        )
+        data = _collect_rev(repo, rev, param_deps=param_deps, force=force, **kwargs)
         if not (rev == "workspace" or param_deps or data.contains_error):
             cache.put(data, force=True)
         return ExpState(rev=rev, data=data)
@@ -142,7 +127,7 @@ def collect_queued(
     repo: "Repo",
     baseline_revs: Collection[str],
     **kwargs,
-) -> Dict[str, List["ExpRange"]]:
+) -> dict[str, list["ExpRange"]]:
     """Collect queued experiments derived from the specified revisions.
 
     Args:
@@ -177,7 +162,7 @@ def collect_active(
     repo: "Repo",
     baseline_revs: Collection[str],
     **kwargs,
-) -> Dict[str, List["ExpRange"]]:
+) -> dict[str, list["ExpRange"]]:
     """Collect active (running) experiments derived from the specified revisions.
 
     Args:
@@ -189,7 +174,7 @@ def collect_active(
     """
     if not baseline_revs:
         return {}
-    result: Dict[str, List["ExpRange"]] = {}
+    result: dict[str, list["ExpRange"]] = {}
     exps = repo.experiments
     for queue in (exps.workspace_queue, exps.tempdir_queue, exps.celery_queue):
         for baseline, active_exps in queue.collect_active_data(
@@ -206,7 +191,7 @@ def collect_failed(
     repo: "Repo",
     baseline_revs: Collection[str],
     **kwargs,
-) -> Dict[str, List["ExpRange"]]:
+) -> dict[str, list["ExpRange"]]:
     """Collect failed experiments derived from the specified revisions.
 
     Args:
@@ -225,7 +210,7 @@ def collect_successful(
     repo: "Repo",
     baseline_revs: Collection[str],
     **kwargs,
-) -> Dict[str, List["ExpRange"]]:
+) -> dict[str, list["ExpRange"]]:
     """Collect successful experiments derived from the specified revisions.
 
     Args:
@@ -235,7 +220,7 @@ def collect_successful(
     Returns:
         Dict mapping baseline revision to successful experiments.
     """
-    result: Dict[str, List["ExpRange"]] = {}
+    result: dict[str, list["ExpRange"]] = {}
     for baseline_rev in baseline_revs:
         result[baseline_rev] = list(_collect_baseline(repo, baseline_rev, **kwargs))
     return result
@@ -261,6 +246,7 @@ def _collect_baseline(
         ref_it = (ref for ref in iter(refs) if ref.startswith(str(ref_info)))
     else:
         ref_it = repo.scm.iter_refs(base=str(ref_info))
+    executors = repo.experiments.celery_queue.collect_success_executors([baseline_rev])
     for ref in ref_it:
         try:
             ref_info = ExpRefInfo.from_ref(ref)
@@ -272,12 +258,16 @@ def _collect_baseline(
         exps = list(collect_branch(repo, exp_rev, baseline_rev, **kwargs))
         if exps:
             exps[0].name = ref_info.name
-            yield ExpRange(exps, name=ref_info.name)
+            yield ExpRange(
+                exps,
+                name=ref_info.name,
+                executor=executors.get(str(ref_info)),
+            )
 
 
 def collect(
     repo: "Repo",
-    revs: Union[List[str], str, None] = None,
+    revs: Union[list[str], str, None] = None,
     all_branches: bool = False,
     all_tags: bool = False,
     all_commits: bool = False,
@@ -286,7 +276,7 @@ def collect(
     hide_failed: bool = False,
     sha_only: bool = False,
     **kwargs,
-) -> List["ExpState"]:
+) -> list["ExpState"]:
     """Collect baseline revisions and derived experiments."""
     assert isinstance(repo.scm, Git)
     if repo.scm.no_commits:
@@ -307,14 +297,14 @@ def collect(
         )
     )
     if sha_only:
-        baseline_names: Dict[str, Optional[str]] = {}
+        baseline_names: dict[str, Optional[str]] = {}
     else:
         baseline_names = describe(
             repo.scm, baseline_revs, refs=cached_refs, logger=logger
         )
 
     workspace_data = collect_rev(repo, "workspace", **kwargs)
-    result: List["ExpState"] = [workspace_data]
+    result: list["ExpState"] = [workspace_data]
     queued = collect_queued(repo, baseline_revs, **kwargs) if not hide_queued else {}
     active = collect_active(repo, baseline_revs, **kwargs)
     failed = collect_failed(repo, baseline_revs, **kwargs) if not hide_failed else {}
@@ -340,10 +330,10 @@ def collect(
     return result
 
 
-def _sorted_ranges(exp_ranges: Iterable["ExpRange"]) -> List["ExpRange"]:
+def _sorted_ranges(exp_ranges: Iterable["ExpRange"]) -> list["ExpRange"]:
     """Return list of ExpRange sorted by (timestamp, rev)."""
 
-    def _head_timestamp(exp_range: "ExpRange") -> Tuple[datetime, str]:
+    def _head_timestamp(exp_range: "ExpRange") -> tuple[datetime, str]:
         head_exp = first(exp_range.revs)
         if head_exp and head_exp.data and head_exp.data.timestamp:
             return head_exp.data.timestamp, head_exp.rev

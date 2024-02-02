@@ -3,18 +3,8 @@ import locale
 import logging
 import os
 from collections import defaultdict
-from typing import (
-    TYPE_CHECKING,
-    Collection,
-    Dict,
-    Generator,
-    List,
-    Mapping,
-    NamedTuple,
-    Optional,
-    Set,
-    Union,
-)
+from collections.abc import Collection, Generator, Mapping
+from typing import TYPE_CHECKING, NamedTuple, Optional, Union
 
 from celery.result import AsyncResult
 from funcy import first
@@ -42,7 +32,7 @@ if TYPE_CHECKING:
 
     from dvc.repo.experiments.executor.base import ExecutorResult
     from dvc.repo.experiments.refs import ExpRefInfo
-    from dvc.repo.experiments.serialize import ExpRange
+    from dvc.repo.experiments.serialize import ExpExecutor, ExpRange
     from dvc_task.app import FSApp
     from dvc_task.proc.manager import ProcessManager
     from dvc_task.worker import TemporaryWorker
@@ -88,10 +78,7 @@ class LocalCeleryQueue(BaseStashQueue):
             "dvc-exp-local",
             wdir=self.wdir,
             mkdir=True,
-            include=[
-                "dvc.repo.experiments.queue.tasks",
-                "dvc_task.proc.tasks",
-            ],
+            include=["dvc.repo.experiments.queue.tasks", "dvc_task.proc.tasks"],
         )
         app.conf.update({"task_acks_late": True, "result_expires": None})
         return app
@@ -166,7 +153,7 @@ class LocalCeleryQueue(BaseStashQueue):
         """
 
         logger.debug("Spawning %s exp queue workers", count)
-        active_worker: Dict = self.worker_status()
+        active_worker: dict = self.worker_status()
 
         started = 0
         for num in range(1, 1 + count):
@@ -183,7 +170,7 @@ class LocalCeleryQueue(BaseStashQueue):
     def put(
         self,
         *args,
-        copy_paths: Optional[List[str]] = None,
+        copy_paths: Optional[list[str]] = None,
         message: Optional[str] = None,
         **kwargs,
     ) -> QueueEntry:
@@ -265,7 +252,7 @@ class LocalCeleryQueue(BaseStashQueue):
                 yield QueueDoneResult(queue_entry, exp_result)
 
     def reproduce(
-        self, copy_paths: Optional[List[str]] = None, message: Optional[str] = None
+        self, copy_paths: Optional[list[str]] = None, message: Optional[str] = None
     ) -> Mapping[str, Mapping[str, str]]:
         raise NotImplementedError
 
@@ -333,8 +320,8 @@ class LocalCeleryQueue(BaseStashQueue):
         while not self.proc.get(entry.stash_rev):
             time.sleep(sleep_interval)
 
-    def _get_running_task_ids(self) -> Set[str]:
-        running_task_ids: Set[str] = set()
+    def _get_running_task_ids(self) -> set[str]:
+        running_task_ids: set[str] = set()
         active_workers = self.worker_status()
         for _, tasks in active_workers.items():
             task = first(tasks)
@@ -343,9 +330,9 @@ class LocalCeleryQueue(BaseStashQueue):
         return running_task_ids
 
     def _try_to_kill_tasks(
-        self, to_kill: Dict[QueueEntry, str], force: bool
-    ) -> Dict[QueueEntry, str]:
-        fail_to_kill_entries: Dict[QueueEntry, str] = {}
+        self, to_kill: dict[QueueEntry, str], force: bool
+    ) -> dict[QueueEntry, str]:
+        fail_to_kill_entries: dict[QueueEntry, str] = {}
         for queue_entry, rev in to_kill.items():
             try:
                 if force:
@@ -358,9 +345,9 @@ class LocalCeleryQueue(BaseStashQueue):
         return fail_to_kill_entries
 
     def _mark_inactive_tasks_failure(
-        self, remained_entries: Dict[QueueEntry, str]
+        self, remained_entries: dict[QueueEntry, str]
     ) -> None:
-        remained_revs: List[str] = []
+        remained_revs: list[str] = []
         running_ids = self._get_running_task_ids()
         logger.debug("Current running tasks ids: %s.", running_ids)
         for msg, entry in self._iter_processed():
@@ -383,12 +370,9 @@ class LocalCeleryQueue(BaseStashQueue):
         if remained_revs:
             raise CannotKillTasksError(remained_revs)
 
-    def _kill_entries(self, entries: Dict[QueueEntry, str], force: bool) -> None:
-        logger.debug(
-            "Found active tasks: '%s' to kill",
-            list(entries.values()),
-        )
-        inactive_entries: Dict[QueueEntry, str] = self._try_to_kill_tasks(
+    def _kill_entries(self, entries: dict[QueueEntry, str], force: bool) -> None:
+        logger.debug("Found active tasks: '%s' to kill", list(entries.values()))
+        inactive_entries: dict[QueueEntry, str] = self._try_to_kill_tasks(
             entries, force
         )
 
@@ -396,12 +380,12 @@ class LocalCeleryQueue(BaseStashQueue):
             self._mark_inactive_tasks_failure(inactive_entries)
 
     def kill(self, revs: Collection[str], force: bool = False) -> None:
-        name_dict: Dict[str, Optional[QueueEntry]] = self.match_queue_entry_by_name(
+        name_dict: dict[str, Optional[QueueEntry]] = self.match_queue_entry_by_name(
             set(revs), self.iter_active()
         )
 
-        missing_revs: List[str] = []
-        to_kill: Dict[QueueEntry, str] = {}
+        missing_revs: list[str] = []
+        to_kill: dict[QueueEntry, str] = {}
         for rev, queue_entry in name_dict.items():
             if queue_entry is None:
                 missing_revs.append(rev)
@@ -417,26 +401,17 @@ class LocalCeleryQueue(BaseStashQueue):
     def shutdown(self, kill: bool = False):
         self.celery.control.shutdown()
         if kill:
-            to_kill: Dict[QueueEntry, str] = {}
+            to_kill: dict[QueueEntry, str] = {}
             for entry in self.iter_active():
                 to_kill[entry] = entry.name or entry.stash_rev
             if to_kill:
                 self._kill_entries(to_kill, True)
 
-    def follow(
-        self,
-        entry: QueueEntry,
-        encoding: Optional[str] = None,
-    ):
+    def follow(self, entry: QueueEntry, encoding: Optional[str] = None):
         for line in self.proc.follow(entry.stash_rev, encoding):
             ui.write(line, end="")
 
-    def logs(
-        self,
-        rev: str,
-        encoding: Optional[str] = None,
-        follow: bool = False,
-    ):
+    def logs(self, rev: str, encoding: Optional[str] = None, follow: bool = False):
         queue_entry: Optional[QueueEntry] = self.match_queue_entry_by_name(
             {rev}, self.iter_active(), self.iter_done()
         ).get(rev)
@@ -463,12 +438,11 @@ class LocalCeleryQueue(BaseStashQueue):
                 f"No output logs found for experiment '{rev}'"
             )
         with open(
-            proc_info.stdout,
-            encoding=encoding or locale.getpreferredencoding(),
+            proc_info.stdout, encoding=encoding or locale.getpreferredencoding()
         ) as fobj:
             ui.write(fobj.read())
 
-    def worker_status(self) -> Dict[str, List[Dict]]:
+    def worker_status(self) -> dict[str, list[dict]]:
         """Return the current active celery worker"""
         status = self.celery.control.inspect().active() or {}
         logger.debug("Worker status: %s", status)
@@ -486,21 +460,21 @@ class LocalCeleryQueue(BaseStashQueue):
 
     def get_ref_and_entry_by_names(
         self,
-        exp_names: Union[str, List[str]],
+        exp_names: Union[str, list[str]],
         git_remote: Optional[str] = None,
-    ) -> Dict[str, ExpRefAndQueueEntry]:
+    ) -> dict[str, ExpRefAndQueueEntry]:
         """Find finished ExpRefInfo or queued or failed QueueEntry by name"""
         from dvc.repo.experiments.utils import resolve_name
 
         if isinstance(exp_names, str):
             exp_names = [exp_names]
-        results: Dict[str, ExpRefAndQueueEntry] = {}
+        results: dict[str, ExpRefAndQueueEntry] = {}
 
-        exp_ref_match: Dict[str, Optional["ExpRefInfo"]] = resolve_name(
+        exp_ref_match: dict[str, Optional["ExpRefInfo"]] = resolve_name(
             self.scm, exp_names, git_remote
         )
         if not git_remote:
-            queue_entry_match: Dict[
+            queue_entry_match: dict[
                 str, Optional["QueueEntry"]
             ] = self.match_queue_entry_by_name(
                 exp_names, self.iter_queued(), self.iter_done()
@@ -517,7 +491,7 @@ class LocalCeleryQueue(BaseStashQueue):
         baseline_revs: Optional[Collection[str]],
         fetch_refs: bool = False,
         **kwargs,
-    ) -> Dict[str, List["ExpRange"]]:
+    ) -> dict[str, list["ExpRange"]]:
         from dvc.repo import Repo
         from dvc.repo.experiments.collect import collect_exec_branch
         from dvc.repo.experiments.serialize import (
@@ -526,7 +500,7 @@ class LocalCeleryQueue(BaseStashQueue):
             LocalExpExecutor,
         )
 
-        result: Dict[str, List[ExpRange]] = defaultdict(list)
+        result: dict[str, list[ExpRange]] = defaultdict(list)
         for entry in self.iter_active():
             if baseline_revs and entry.baseline_rev not in baseline_revs:
                 continue
@@ -565,10 +539,8 @@ class LocalCeleryQueue(BaseStashQueue):
         return result
 
     def collect_queued_data(
-        self,
-        baseline_revs: Optional[Collection[str]],
-        **kwargs,
-    ) -> Dict[str, List["ExpRange"]]:
+        self, baseline_revs: Optional[Collection[str]], **kwargs
+    ) -> dict[str, list["ExpRange"]]:
         from dvc.repo.experiments.collect import collect_rev
         from dvc.repo.experiments.serialize import (
             ExpExecutor,
@@ -576,7 +548,7 @@ class LocalCeleryQueue(BaseStashQueue):
             LocalExpExecutor,
         )
 
-        result: Dict[str, List[ExpRange]] = defaultdict(list)
+        result: dict[str, list[ExpRange]] = defaultdict(list)
         for entry in self.iter_queued():
             if baseline_revs and entry.baseline_rev not in baseline_revs:
                 continue
@@ -598,7 +570,7 @@ class LocalCeleryQueue(BaseStashQueue):
         self,
         baseline_revs: Optional[Collection[str]],
         **kwargs,
-    ) -> Dict[str, List["ExpRange"]]:
+    ) -> dict[str, list["ExpRange"]]:
         from dvc.repo.experiments.collect import collect_rev
         from dvc.repo.experiments.serialize import (
             ExpExecutor,
@@ -607,7 +579,7 @@ class LocalCeleryQueue(BaseStashQueue):
             SerializableError,
         )
 
-        result: Dict[str, List[ExpRange]] = defaultdict(list)
+        result: dict[str, list[ExpRange]] = defaultdict(list)
         for entry, _ in self.iter_failed():
             if baseline_revs and entry.baseline_rev not in baseline_revs:
                 continue
@@ -630,5 +602,34 @@ class LocalCeleryQueue(BaseStashQueue):
                     executor=ExpExecutor("failed", local=local_exec),
                     name=entry.name,
                 )
+            )
+        return result
+
+    def collect_success_executors(
+        self,
+        baseline_revs: Optional[Collection[str]],
+        **kwargs,
+    ) -> dict[str, "ExpExecutor"]:
+        """Map exp refs to any available successful executors."""
+        from dvc.repo.experiments.serialize import ExpExecutor, LocalExpExecutor
+
+        result: dict[str, "ExpExecutor"] = {}
+        for entry, exec_result in self.iter_success():
+            if baseline_revs and entry.baseline_rev not in baseline_revs:
+                continue
+            if not (exec_result and exec_result.ref_info):
+                continue
+            proc_info = self.proc.get(entry.stash_rev)
+            if proc_info:
+                local_exec: Optional[LocalExpExecutor] = LocalExpExecutor(
+                    log=proc_info.stdout,
+                    pid=proc_info.pid,
+                    returncode=proc_info.returncode,
+                    task_id=entry.stash_rev,
+                )
+            else:
+                local_exec = None
+            result[str(exec_result.ref_info)] = ExpExecutor(
+                "success", name="dvc-task", local=local_exec
             )
         return result

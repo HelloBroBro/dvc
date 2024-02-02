@@ -1,6 +1,6 @@
 import os
 from contextlib import contextmanager
-from typing import TYPE_CHECKING, List, Optional, Tuple
+from typing import TYPE_CHECKING, Optional
 
 from funcy import first
 
@@ -247,7 +247,7 @@ class StageCache:
             message = f"run-cache is not supported for http filesystem: {path}"
             raise RunCacheNotSupported(message)
 
-        ret: List[Tuple[str, str]] = []
+        ret: list[tuple[str, str]] = []
         if not from_fs.exists(runs):
             return ret
 
@@ -266,10 +266,7 @@ class StageCache:
 
             src_name = from_fs.name(src)
             parent_name = from_fs.name(from_fs.parent(src))
-            with TqdmCallback(
-                desc=src_name,
-                bytes=True,
-            ) as cb:
+            with TqdmCallback(desc=src_name, bytes=True) as cb:
                 func(from_fs, src, to_fs, dst, callback=cb)
             ret.append((parent_name, src_name))
         return ret

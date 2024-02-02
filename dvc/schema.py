@@ -1,5 +1,5 @@
 from collections.abc import Mapping
-from typing import Any, Dict
+from typing import Any
 
 import voluptuous as vol
 
@@ -28,13 +28,14 @@ SINGLE_STAGE_SCHEMA = {
     StageParams.PARAM_DESC: str,
 }
 
-DATA_SCHEMA: Dict[Any, Any] = {
+DATA_SCHEMA: dict[Any, Any] = {
     **CHECKSUMS_SCHEMA,
     **META_SCHEMA,
     vol.Required("path"): str,
     Output.PARAM_CLOUD: CLOUD_SCHEMA,
     Output.PARAM_FILES: [DIR_FILES_SCHEMA],
     Output.PARAM_HASH: str,
+    **dependency.DatasetDependency.DATASET_SCHEMA,
 }
 LOCK_FILE_STAGE_SCHEMA = {
     vol.Required(StageParams.PARAM_CMD): vol.Any(str, list),
@@ -122,7 +123,12 @@ FOREACH_IN = {
 SINGLE_PIPELINE_STAGE_SCHEMA = {
     str: either_or(STAGE_DEFINITION, FOREACH_IN, [FOREACH_KWD, DO_KWD])
 }
+
+DATASET_SCHEMA = vol.Schema(
+    {vol.Required("type"): str, vol.Required("name"): str}, extra=vol.ALLOW_EXTRA
+)
 MULTI_STAGE_SCHEMA = {
+    "datasets": [DATASET_SCHEMA],
     PLOTS: [vol.Any(str, SINGLE_PLOT_SCHEMA)],
     STAGES: SINGLE_PIPELINE_STAGE_SCHEMA,
     VARS_KWD: VARS_SCHEMA,

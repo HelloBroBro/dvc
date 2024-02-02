@@ -1,6 +1,6 @@
 import argparse
 import os
-from typing import TYPE_CHECKING, Dict, List, Optional
+from typing import TYPE_CHECKING, Optional
 
 from funcy import compact, first, get_in
 
@@ -20,35 +20,26 @@ logger = logger.getChild(__name__)
 
 
 def _show_json(
-    renderers_with_errors: List["RendererWithErrors"],
+    renderers_with_errors: list["RendererWithErrors"],
     split=False,
-    errors: Optional[Dict[str, Exception]] = None,
+    errors: Optional[dict[str, Exception]] = None,
 ):
     from dvc.render.convert import to_json
     from dvc.utils.serialize import encode_exception
 
-    all_errors: List[Dict] = []
+    all_errors: list[dict] = []
     data = {}
 
     for renderer, src_errors, def_errors in renderers_with_errors:
         name = renderer.name
         data[name] = to_json(renderer, split)
         all_errors.extend(
-            {
-                "name": name,
-                "rev": rev,
-                "source": source,
-                **encode_exception(e),
-            }
+            {"name": name, "rev": rev, "source": source, **encode_exception(e)}
             for rev, per_rev_src_errors in src_errors.items()
             for source, e in per_rev_src_errors.items()
         )
         all_errors.extend(
-            {
-                "name": name,
-                "rev": rev,
-                **encode_exception(e),
-            }
+            {"name": name, "rev": rev, **encode_exception(e)}
             for rev, e in def_errors.items()
         )
 
@@ -101,10 +92,7 @@ class CmdPlots(CmdBase):
                 return 1
 
         try:
-            plots_data = self._func(
-                targets=self.args.targets,
-                props=self._props(),
-            )
+            plots_data = self._func(targets=self.args.targets, props=self._props())
 
             if not plots_data and not self.args.json:
                 ui.error_write(

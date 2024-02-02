@@ -1,16 +1,9 @@
 import os
 from collections import defaultdict
-from contextlib import contextmanager
+from collections.abc import Iterable
+from contextlib import AbstractContextManager, contextmanager
 from functools import wraps
-from typing import (
-    TYPE_CHECKING,
-    Callable,
-    ContextManager,
-    Iterable,
-    Optional,
-    Tuple,
-    Union,
-)
+from typing import TYPE_CHECKING, Callable, Optional, Union
 
 from dvc.exceptions import (
     DvcException,
@@ -111,7 +104,7 @@ class Repo:
         fs: Optional["FileSystem"] = None,
         uninitialized: bool = False,
         scm: Optional[Union["Git", "NoSCM"]] = None,
-    ) -> Tuple[str, Optional[str]]:
+    ) -> tuple[str, Optional[str]]:
         from dvc.fs import localfs
         from dvc.scm import SCM, SCMError
 
@@ -181,14 +174,8 @@ class Repo:
 
         self.root_dir: str
         self.dvc_dir: Optional[str]
-        (
-            self.root_dir,
-            self.dvc_dir,
-        ) = self._get_repo_dirs(
-            root_dir=root_dir,
-            fs=self.fs,
-            uninitialized=uninitialized,
-            scm=scm,
+        (self.root_dir, self.dvc_dir) = self._get_repo_dirs(
+            root_dir=root_dir, fs=self.fs, uninitialized=uninitialized, scm=scm
         )
 
         self._uninitialized = uninitialized
@@ -268,16 +255,12 @@ class Repo:
         if not isinstance(self.fs, GitFileSystem):
             return None
 
-        relparts: Tuple[str, ...] = ()
+        relparts: tuple[str, ...] = ()
         if self.root_dir != "/":
             # subrepo
             relparts = self.fs.relparts(self.root_dir, "/")
 
-        dvc_dir = os.path.join(
-            self.scm.root_dir,
-            *relparts,
-            self.DVC_DIR,
-        )
+        dvc_dir = os.path.join(self.scm.root_dir, *relparts, self.DVC_DIR)
         if os.path.exists(dvc_dir):
             return dvc_dir
 
@@ -392,7 +375,7 @@ class Repo:
         self,
         path: str,
         workspace: str = "repo",
-    ) -> Tuple["DataIndex", "DataIndexEntry"]:
+    ) -> tuple["DataIndex", "DataIndexEntry"]:
         if self.subrepos:
             fs_path = self.dvcfs.from_os_path(path)
             fs = self.dvcfs.fs
@@ -476,7 +459,7 @@ class Repo:
 
         return brancher(self, *args, **kwargs)
 
-    def switch(self, rev: str) -> ContextManager[str]:
+    def switch(self, rev: str) -> AbstractContextManager[str]:
         from dvc.repo.brancher import switch
 
         return switch(self, rev)
@@ -625,12 +608,12 @@ class Repo:
 
         cache_dir = self.config["core"].get("site_cache_dir") or site_cache_dir()
 
+        subdir = None
         if isinstance(self.fs, GitFileSystem):
-            relparts: Tuple[str, ...] = ()
             if self.root_dir != "/":
                 # subrepo
-                relparts = self.fs.relparts(self.root_dir, "/")
-            root_dir = os.path.join(self.scm.root_dir, *relparts)
+                subdir = self.root_dir
+            root_dir = self.scm.root_dir
         else:
             root_dir = self.root_dir
 
@@ -646,7 +629,7 @@ class Repo:
         # components were changed (useful to prevent newer dvc versions from
         # using older broken cache). Please reset this back to 0 if other parts
         # of the token components are changed.
-        salt = 2
+        salt = 0
 
         # NOTE: This helps us avoid accidentally reusing cache for repositories
         # that just happened to be at the same path as old deleted ones.
@@ -654,13 +637,7 @@ class Repo:
 
         md5 = hashlib.md5(  # noqa: S324
             str(
-                (
-                    root_dir,
-                    btime,
-                    getpass.getuser(),
-                    version_tuple[0],
-                    salt,
-                )
+                (root_dir, subdir, btime, getpass.getuser(), version_tuple[0], salt)
             ).encode()
         )
         repo_token = md5.hexdigest()

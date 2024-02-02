@@ -1,7 +1,7 @@
 import os
 import tempfile
 import threading
-from typing import TYPE_CHECKING, Dict, Optional, Tuple
+from typing import TYPE_CHECKING, Optional
 
 from funcy import retry, wrap_with
 
@@ -18,11 +18,7 @@ logger = logger.getChild(__name__)
 
 
 @map_scm_exception()
-def _external_repo(
-    url,
-    rev: Optional[str] = None,
-    **kwargs,
-) -> "Repo":
+def _external_repo(url, rev: Optional[str] = None, **kwargs) -> "Repo":
     logger.debug("Creating external repo %s@%s", url, rev)
     path = _cached_clone(url, rev)
     # Local HEAD points to the tip of whatever branch we first cloned from
@@ -78,8 +74,8 @@ def erepo_factory(url, root_dir, cache_config):
     return make_repo
 
 
-CLONES: Dict[str, Tuple[str, bool]] = {}
-CACHE_DIRS: Dict[str, str] = {}
+CLONES: dict[str, tuple[str, bool]] = {}
+CACHE_DIRS: dict[str, str] = {}
 
 
 @wrap_with(threading.Lock())

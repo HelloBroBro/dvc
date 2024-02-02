@@ -1,5 +1,5 @@
 import os
-from typing import TYPE_CHECKING, Optional, Tuple
+from typing import TYPE_CHECKING, Optional
 
 from dvc.fs import GitFileSystem, Schemes
 from dvc_data.hashfile.db import get_odb
@@ -15,7 +15,7 @@ def _get_odb(
     repo,
     settings,
     fs=None,
-    prefix: Optional[Tuple[str, ...]] = None,
+    prefix: Optional[tuple[str, ...]] = None,
     hash_name: Optional[str] = None,
     **kwargs,
 ):
@@ -144,15 +144,9 @@ def migrate_2_to_3(repo: "Repo", dry: bool = False):
         )
         return
 
-    with TqdmCallback(
-        desc="Computing DVC 3.0 hashes",
-        unit="files",
-    ) as cb:
+    with TqdmCallback(desc="Computing DVC 3.0 hashes", unit="files") as cb:
         migration = prepare(src, dest, callback=cb)
 
-    with TqdmCallback(
-        desc="Migrating to DVC 3.0 cache",
-        unit="files",
-    ) as cb:
+    with TqdmCallback(desc="Migrating to DVC 3.0 cache", unit="files") as cb:
         count = migrate(migration, callback=cb)
     ui.write(f"Migrated {count} files to DVC 3.0 cache location.")

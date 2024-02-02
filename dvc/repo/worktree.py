@@ -1,5 +1,6 @@
+from collections.abc import Iterable
 from functools import partial
-from typing import TYPE_CHECKING, Any, Dict, Iterable, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, Optional, Union
 
 from funcy import first
 
@@ -35,7 +36,7 @@ def worktree_view_by_remotes(
     targets: Optional["TargetType"] = None,
     push: bool = False,
     **kwargs: Any,
-) -> Iterable[Tuple[Optional[str], "IndexView"]]:
+) -> Iterable[tuple[Optional[str], "IndexView"]]:
     from dvc.repo.index import IndexView
 
     def outs_filter(view: "IndexView", remote: Optional[str]):
@@ -161,22 +162,15 @@ def _merge_push_meta(  # noqa: C901
         out.meta.remote = remote
 
 
-def update_worktree_stages(
-    repo: "Repo",
-    stage_infos: Iterable["StageInfo"],
-):
+def update_worktree_stages(repo: "Repo", stage_infos: Iterable["StageInfo"]):
     from dvc.repo.index import IndexView
 
     def outs_filter(out: "Output") -> bool:
         return out.is_in_repo and out.use_cache and out.can_push
 
-    view = IndexView(
-        repo.index,
-        stage_infos,
-        outs_filter=outs_filter,
-    )
+    view = IndexView(repo.index, stage_infos, outs_filter=outs_filter)
     local_index = view.data["repo"]
-    remote_indexes: Dict[str, Tuple["Remote", "DataIndex"]] = {}
+    remote_indexes: dict[str, tuple["Remote", "DataIndex"]] = {}
     for stage in view.stages:
         for out in stage.outs:
             _update_worktree_out(repo, out, local_index, remote_indexes)
@@ -187,16 +181,13 @@ def _update_worktree_out(
     repo: "Repo",
     out: "Output",
     local_index: Union["DataIndex", "DataIndexView"],
-    remote_indexes: Dict[str, Tuple["Remote", "DataIndex"]],
+    remote_indexes: dict[str, tuple["Remote", "DataIndex"]],
 ):
     from dvc_data.index import build
 
     remote_name = out.remote or out.meta.remote
     if not remote_name:
-        logger.warning(
-            "Could not update '%s', it was never pushed to a remote",
-            out,
-        )
+        logger.warning("Could not update '%s', it was never pushed to a remote", out)
         return
 
     if remote_name in remote_indexes:
@@ -210,10 +201,7 @@ def _update_worktree_out(
         remote_indexes[remote_name] = remote, remote_index
     _workspace, key = out.index_key
     if key not in remote_index:
-        logger.warning(
-            "Could not update '%s', it does not exist in the remote",
-            out,
-        )
+        logger.warning("Could not update '%s', it does not exist in the remote", out)
         return
 
     entry = remote_index[key]
@@ -225,20 +213,11 @@ def _update_worktree_out(
             for subkey, subentry in remote_index.iteritems(key)
         )
     ):
-        logger.warning(
-            "Could not update '%s', directory is empty in the remote",
-            out,
-        )
+        logger.warning("Could not update '%s', directory is empty in the remote", out)
         return
 
     _fetch_out_changes(out, local_index, remote_index, remote)
-    _update_out_meta(
-        repo,
-        out,
-        local_index,
-        remote_index,
-        remote,
-    )
+    _update_out_meta(repo, out, local_index, remote_index, remote)
 
 
 def _fetch_out_changes(
@@ -252,10 +231,7 @@ def _fetch_out_changes(
 
     old, new = _get_diff_indexes(out, local_index, remote_index)
 
-    with TqdmCallback(
-        unit="entry",
-        desc="Comparing indexes",
-    ) as cb:
+    with TqdmCallback(unit="entry", desc="Comparing indexes") as cb:
         diff = compare(
             old,
             new,
@@ -283,7 +259,7 @@ def _get_diff_indexes(
     out: "Output",
     local_index: Union["DataIndex", "DataIndexView"],
     remote_index: Union["DataIndex", "DataIndexView"],
-) -> Tuple["DataIndex", "DataIndex"]:
+) -> tuple["DataIndex", "DataIndex"]:
     from dvc_data.index import DataIndex
 
     _, key = out.index_key
