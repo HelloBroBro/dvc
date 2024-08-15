@@ -6,7 +6,7 @@ import sys
 from collections import defaultdict
 from collections.abc import Iterator
 from contextlib import contextmanager, suppress
-from http.server import HTTPServer, SimpleHTTPRequestHandler
+from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
 from threading import Thread
 from typing import ClassVar
@@ -41,7 +41,7 @@ UPDATER_INFO_STR = json.dumps(UPDATER_INFO).encode("utf8")
 
 
 def make_request_handler():
-    class RequestHandler(SimpleHTTPRequestHandler):
+    class RequestHandler(BaseHTTPRequestHandler):
         # save requests count for each method
         hits: ClassVar[dict[str, int]] = defaultdict(int)
 
@@ -80,7 +80,10 @@ def server():
         thread = Thread(target=httpd.serve_forever)
         thread.daemon = True
         thread.start()
-        yield httpd
+        try:
+            yield httpd
+        finally:
+            httpd.shutdown()
 
 
 def test_analytics(tmp_path, server):
@@ -94,6 +97,11 @@ def test_analytics(tmp_path, server):
     }
     env.pop("DVC_TEST", None)
     env.pop("DVC_NO_ANALYTICS", None)
+    # The `iterative-telemetry` package calls `gh api` to generate a CI id.
+    # This might hang especially on Windows,
+    # possibly due to system load from the running tests.
+    # Removing the GITHUB_ACTIONS env var avoids calling `gh api`.
+    env.pop("GITHUB_ACTIONS", None)
 
     output = subprocess.check_output(
         [*_get_dvc_args(), "config", "-l", "-vv"],
@@ -111,8 +119,12 @@ def test_analytics(tmp_path, server):
 
     with suppress(psutil.NoSuchProcess):
         psutil.Process(pid).wait(timeout=10)
+
+    log_contents = logfile.read_text(encoding="utf8")
+    expected_line = (f"Process {pid} " if os.name != "nt" else "") + "exiting with 0"
+    assert expected_line in log_contents
+
     assert not os.path.exists(report_file)
-    assert f"Process {pid} exiting with 0" in logfile.read_text(encoding="utf8")
     assert server.RequestHandlerClass.hits == {"POST": 1}
 
 
@@ -142,7 +154,11 @@ def test_updater(tmp_dir, dvc, server):
 
     with suppress(psutil.NoSuchProcess):
         psutil.Process(pid).wait(timeout=10)
-    assert f"Process {pid} exiting with 0" in logfile.read_text(encoding="utf8")
+
+    log_contents = logfile.read_text(encoding="utf8")
+    expected_line = (f"Process {pid} " if os.name != "nt" else "") + "exiting with 0"
+    assert expected_line in log_contents
+
     assert server.RequestHandlerClass.hits == {"GET": 1}
     # check that the file is saved correctly
     updater_file = Path(dvc.tmp_dir) / Updater.UPDATER_FILE
